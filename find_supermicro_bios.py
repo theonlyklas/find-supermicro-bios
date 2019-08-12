@@ -18,7 +18,7 @@ global VALID_CHOICES_Y_N
 VALID_CHOICES_Y_N = ['y', 'n']
 
 global GENERIC_Y_N_PROMPT
-GENERIC_Y_N_PROMPT = SafeUserPrompt("Please enter Y/N: ", "Please enter Y/N: ", VALID_CHOICES_Y_N)
+GENERIC_Y_N_PROMPT = SafeUserPrompt("Please enter", "Please enter", VALID_CHOICES_Y_N)
 global GENERIC_SAFE_INDEX_PROMPT
 GENERIC_SAFE_INDEX_PROMPT = SafeIndexPrompt(SafeUserPrompt("Specify index, valid index must be >= 0: " + BASE_DOWNLOAD_URL, "INVALID INDEX! Specify index, valid index must be >= 0: " + BASE_DOWNLOAD_URL, myValidChoices=None))
 
@@ -27,47 +27,54 @@ class SafeUserPrompt:
         return SafeUserPrompt(self, myUserPrompt="Please specify a valid user prompt, error text, and choices.", myErrorText="Please specify a valid user prompt, error text, and choices.", myValidChoices=None)
 
     def __init__(self, myUserPrompt, myErrorText, myValidChoices):
-        UserPrompt = myUserPrompt
-        ErrorText = myErrorText
-        ValidChoices = myValidChoices
+        self.UserPrompt = myUserPrompt
+        self.ErrorText = myErrorText
+        self.ValidChoices = myValidChoices
 
     def get_choice_safely(self):
         choice = ""
+        input_string = self.UserPrompt + ' '
+
+        for valid_choice in self.ValidChoices:
+            input_string += valid_choice.upper() + '\\'
+
+        input_string = input_string[:-1] + ': '
 
         while (True):
             try:
-                choice = input(UserPrompt).lower()
-                if (True == (choice in ValidChoices)):                
+
+                choice = input(input_string).lower()
+                if (True == (choice in self.ValidChoices)):                
                     break
                 else:
-                    print(ErrorText)
+                    print(self.ErrorText)
             except KeyboardInterrupt:
                 raise
             except Exception as e:
-                print(ErrorText)
+                print(self.ErrorText)
 
         return choice
 
 class SafeIndexPrompt(SafeUserPrompt):
     def __init__(self, myUserPrompt, myErrorText, myValidChoices):
-        UserPrompt = myUserPrompt
-        ErrorText = myErrorText
-        ValidChoices = None
+        self.UserPrompt = myUserPrompt
+        self.ErrorText = myErrorText
+        self.ValidChoices = None
 
     def get_choice_safely(self):
         requested_index = -1
 
         while (True):
             try:
-                requested_index = int(input(UserPrompt))
+                requested_index = int(input(self.UserPrompt))
                 if (True == (requested_index >= 0)):                
                     break
                 else:
-                    print(ErrorText)
+                    print(self.ErrorText)
             except KeyboardInterrupt:
                 raise
             except Exception as e:
-                print(ErrorText)
+                print(self.ErrorText)
         
         return requested_index
 
@@ -77,26 +84,41 @@ class ScriptRunMode(Enum):
     SEARCH_DOWNLOADED_FILES = 1
 
 class ScriptParametersBase:
-    RunMode = ScriptRunMode.INVALID_RUN_MODE
-    PathToSavedPages = ""
+    self.RunMode = ScriptRunMode.INVALID_RUN_MODE
+    self.PathToSavedPages = ""
     
 class DownloadFiles(ScriptParametersBase):
+    self.IndicesToDownload = []
+    
     def default_constructor(self):
         return DownloadFiles(myRunMode = ScriptRunMode.INVALID_RUN_MODE, myPathToSavedPages = "", myIndicesToDownload = [])
 
     def __init__(self, myRunMode, myPathToSavedPages, myIndicesToDownload):
-        RunMode = myRunMode
-        PathToSavedPages = myPathToSavedPages
-        IndicesToDownload = myIndicesToDownload
+        self.RunMode = myRunMode
+        self.PathToSavedPages = myPathToSavedPages
+        self.IndicesToDownload = myIndicesToDownload
+    
+    def print_file_index_ranges_to_download(self):
+        if (len(self.IndicesToDownload) > 0):
+            print("Displaying all specified file index ranges that will be downloaded:")
+            for index_range in self.IndicesToDownload:
+                print("File index range " + self.IndicesToDownload.index(index_range) + ": " + str(index_range[0]) + "-" + str(index_range[1]))
+        else:
+            print("No file index range has been specified to be downloaded!")
+    
+    def clear_all_saved_page_index_ranges(self):
+        self.IndicesToDownload = []
 
-class SearchDownloadedFiles(ScriptParametersBase):
+class SearchFiles(ScriptParametersBase):
+    FilenamesToFind = []
+
     def default_constructor(self):
-        return SearchDownloadedFiles(myRunMode = ScriptRunMode.INVALID_RUN_MODE, myPathToSavedPages = "", myFilenameToFind = "")
+        return SearchDownloadedFiles(myRunMode = ScriptRunMode.INVALID_RUN_MODE, myPathToSavedPages = "", myFilenamesToFind = [])
 
-    def __init__(self, myRunMode, myFilenameToFind, myPathToSavedPages):
-        RunMode = myRunMode
-        PathToSavedPages = myPathToSavedPages
-        FilenameToFind = myFilenameToFind
+    def __init__(self, myRunMode, myPathToSavedPages, myFilesnameToFind):
+        self.RunMode = myRunMode
+        self.PathToSavedPages = myPathToSavedPages
+        self.FilenamesToFind = myFilenamesToFind
 
 def get_page(url, i):
     page = requests.get(url)
@@ -201,19 +223,19 @@ def find_file_in_saved_pages(filename_to_find):
         print("Something went wrong while attempting to find " + filename_to_find)
         print(e)
 
+
+
 def create_download_files_script_parameters():
-    AnotherDownloadIndexRangePrompt = SafeUserPrompt("Do you want to specify another range of file indices to download? Y/N", "Do you want to specify another range of file indices to download? Y/N", VALID_CHOICES_Y_N)
-    StartingEndingIndexSwapPrompt = SafeUserPrompt("Your starting file download index is greater than your ending file download index.  Do you want to SWAP these values or DISCARD this range?  S/D:", "Your starting file download index is greater than your ending file download index.  Do you want to SWAP these values or DISCARD this range?  S/D:", ["s", "d"])
+    AnotherDownloadIndexRangePrompt = SafeUserPrompt("Do you want to specify another file index range to download?", "Do you want to specify another file index range to download?", VALID_CHOICES_Y_N)
+    StartingEndingIndexSwapPrompt = SafeUserPrompt("Your starting file download index is greater than your ending file download index.  Do you want to SWAP these values or DISCARD this range?", "Your starting file download index is greater than your ending file download index.  Do you want to SWAP these values or DISCARD this range?", ["s", "d"])
+    ConfirmDoneSpecifiyingFileIndexRangesPrompt = SafeUserPrompt("Do you want to download these file index ranges?", "Do you want to download these file index ranges?", VALID_CHOICES_Y_N)
+    ContinueSpecifyingIndexRangesOrDeleteAllPrompt = SafeUserPrompt("Do you want to CONTINUE specifying file index ranges to download or DELETE ALL the ones you've already specified?", "Do you want to CONTINUE specifying file index ranges to download or DELETE ALL the ranges you've already specified?", ["c", "d"])
     script_downloading_files_parameters = DownloadFiles.default_constructor(ScriptParametersBase())
 
-    choice = "y"
-    while ("y" == choice):
+    choice = 'y'
+    while ('y' == choice):
         try:
-            if (len(script_downloading_files_parameters.IndicesToDownload) > 0):
-                print("Currently specified page ranges to download:")
-                for index_ranges in script_downloading_files_parameters.IndicesToDownload:
-                    print(str(index_ranges))
-
+            script_downloading_files_parameters.print_file_index_ranges_to_download()
             print("Specifying STARTING index of next range of files to download.")
             starting_index = GENERIC_SAFE_INDEX_PROMPT.get_choice_safely()
             print("Specifying ENDING index of next range of files to download.")
@@ -230,6 +252,24 @@ def create_download_files_script_parameters():
                 script_downloading_files_parameters.IndicesToDownload.append([starting_index, ending_index])
             
             choice = AnotherDownloadIndexRangePrompt.get_choice_safely()
+
+            if ('n' == choice):
+                script_downloading_files_parameters.print_file_index_ranges_to_download()
+                confirm_done_choice = ConfirmDoneSpecifiyingFileIndexRangesPrompt.get_choice_safely()
+
+                if ('y' == confirm_done_choice):
+                    script_downloading_files_parameters.RunMode = ScriptRunMode.DOWNLOAD_FILE_RANGE
+                else:
+                    continue_or_delete_choice = ContinueSpecifyingIndexRangesOrDeleteAllPrompt.get_choice_safely()
+
+                    if ('c' == continue_or_delete_choice):
+                        continue
+                    else:
+                        script_downloading_files_parameters.clear_all_saved_page_index_ranges()
+                        print("Cleared all saved page index ranges.")
+            else:
+                continue
+
         except KeyboardInterrupt:
             raise
         except Exception as e:
@@ -240,16 +280,21 @@ def create_download_files_script_parameters():
     return script_downloading_files_parameters
 
 def create_search_files_script_parameters():
-    while 
-    try:
-        choice = ("Search for a file in your downloaded pages? Y/N")
-        if ("Y" == choice or "y" == choice):
-            choice = input("Do you want to use pattern matching?")
+    LookupIndexFromFilenamePrompt = SafeUserPrompt("Do you want to lookup the index of a file by filename?", "Do you want to lookup the index of a file by filename?", VALID_CHOICES_Y_N)
+    UsePatternMatchingPrompt = SafeUserPrompt("Do you want to use pattern matching to find the file?", "Do you want to use pattern matching to find the file?", VALID_CHOICES_Y_N)
+    script_search_files_parameters = SearchFiles.default_constructor(ScriptParametersBase())
 
-            if ("Y" == choice or "y" == choice):
+    try:
+        choice = LookupIndexFromFilenamePrompt.get_choice_safely()
+        if ('y' == choice):
+            pattern_matching_choice = UsePatternMatchingPrompt.get_choice_safely()
+
+            if ('y' == pattern_matching_choice):
                 filename_to_find = input("Enter a pattern to search for:  ")
 
             return
+        else:
+            
     except Exception as e:
         print("Something went wrong setting the starting index for downloading!")
         print(e)
